@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>💎 Gem Dashboard</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a0f;color:#e0e0ff;font-family:'Segoe UI',sans-serif;min-height:100vh;font-size:16px}
+  .navbar{background:rgba(15,15,30,0.95);border-bottom:1px solid #2a2a4a;padding:14px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;backdrop-filter:blur(10px)}
+  .navbar h1{font-size:1.4rem;font-weight:700;background:linear-gradient(135deg,#7b6fff,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .navbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .refresh-badge{display:flex;align-items:center;gap:6px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);border-radius:20px;padding:4px 12px;font-size:0.85rem;color:#4ade80}
+  .refresh-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+  .update-time{font-size:0.85rem;color:#666}
+  .summary{display:flex;gap:16px;padding:20px 24px;flex-wrap:wrap}
+  .card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px 20px;flex:1;min-width:150px}
+  .card .label{font-size:0.85rem;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px}
+  .card .value{font-size:2rem;font-weight:700;color:#a78bfa}
+  .card.online .value{color:#4ade80}
+  .search{padding:0 24px 16px}
+  .search input{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 16px;color:#fff;font-size:1rem;width:300px;outline:none}
+  .search input:focus{border-color:#7b6fff}
+  .table-wrap{overflow-x:auto;padding:0 24px}
+  table{width:100%;border-collapse:collapse}
+  thead tr{background:rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.08)}
+  th{padding:13px 14px;text-align:left;font-size:0.88rem;text-transform:uppercase;letter-spacing:0.05em;color:#888;font-weight:600;white-space:nowrap}
+  td{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:1rem;vertical-align:middle}
+  tr:hover td{background:rgba(255,255,255,0.02)}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;font-size:0.85rem;font-weight:600}
+  .badge.online{background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.3)}
+  .badge.offline{background:rgba(255,255,255,0.05);color:#666;border:1px solid rgba(255,255,255,0.08)}
+  .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+  .gems{color:#fbbf24;font-weight:700;font-size:1.05rem}
+  .empty{text-align:center;padding:60px;color:#444;font-size:1rem}
+  .btn-delete{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 11px;font-size:0.85rem;cursor:pointer;transition:all 0.2s}
+  .btn-delete:hover{background:rgba(239,68,68,0.3)}
+  .editable-cell{position:relative}
+  .cell-display{cursor:pointer;min-width:70px;min-height:28px;display:inline-flex;align-items:center;gap:6px;border-radius:6px;padding:3px 8px;transition:background 0.15s;color:#c4b5fd}
+  .cell-display:hover{background:rgba(123,111,255,0.15)}
+  .cell-display.empty-val{color:#444}
+  .edit-icon{opacity:0;font-size:0.75rem;transition:opacity 0.15s}
+  .cell-display:hover .edit-icon{opacity:1}
+  .cell-input{background:rgba(123,111,255,0.15);border:1px solid #7b6fff;border-radius:6px;padding:4px 8px;color:#fff;font-size:0.95rem;width:90px;outline:none}
+  .cell-input:focus{border-color:#a78bfa;box-shadow:0 0 0 2px rgba(123,111,255,0.2)}
+  .cell-input.wide{width:80px}
+  .save-btn{background:rgba(74,222,128,0.2);border:1px solid rgba(74,222,128,0.4);color:#4ade80;border-radius:5px;padding:3px 8px;font-size:0.8rem;cursor:pointer;margin-left:4px}
+  .save-btn:hover{background:rgba(74,222,128,0.4)}
+  .target-progress{height:3px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:4px;overflow:hidden}
+  .target-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,#7b6fff,#a78bfa);transition:width 0.4s}
+  .target-pct{font-size:0.75rem;color:#7b6fff;margin-top:2px}
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <div>💎</div>
+  <h1>Gem Dashboard</h1>
+  <div class="navbar-right">
+    <div class="refresh-badge">
+      <span class="refresh-dot"></span>
+      🔄 Auto refresh <span id="countdown" style="margin-left:4px;font-weight:700">5</span>s
+    </div>
+    <span class="update-time" id="lastUpdate">รอข้อมูล...</span>
+  </div>
+</div>
+
+<div class="summary">
+  <div class="card online"><div class="label">🟢 Online</div><div class="value" id="sumOnline">0</div></div>
+  <div class="card"><div class="label">👥 Total Players</div><div class="value" id="sumTotal">0</div></div>
+  <div class="card"><div class="label">💎 Total Gems</div><div class="value" id="sumGems">0</div></div>
+  <div class="card"><div class="label">📊 Avg Gems</div><div class="value" id="sumAvg">0</div></div>
+</div>
+
+<div class="search">
+  <input id="searchInput" placeholder="🔍 ค้นหา username..." oninput="renderTable()"/>
+</div>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Status</th>
+      <th>Username</th>
+      <th>💎 Gems</th>
+      <th>Last Seen</th>
+      <th>🎯 Target</th>
+      <th>🔢 Ug No.</th>
+      <th>🖥️ จอที่</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+</div>
+
+<script>
+let allPlayers = [];
+let countdownVal = 5;
+let countdownTimer = null;
+
+function getExtra(username) {
+  try {
+    const all = JSON.parse(localStorage.getItem('gemExtra') || '{}');
+    return all[username] || { target: '', ugNo: '', screen: '' };
+  } catch { return { target: '', ugNo: '', screen: '' }; }
+}
+
+function saveExtra(username, field, value) {
+  try {
+    const all = JSON.parse(localStorage.getItem('gemExtra') || '{}');
+    if (!all[username]) all[username] = { target: '', ugNo: '', screen: '' };
+    all[username][field] = value;
+    localStorage.setItem('gemExtra', JSON.stringify(all));
+  } catch {}
+}
+
+function fmt(n) {
+  if (!n && n !== 0) return '—';
+  if (n >= 1e9) return (n/1e9).toFixed(2)+'B';
+  if (n >= 1e6) return (n/1e6).toFixed(2)+'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
+  return n.toLocaleString();
+}
+
+function timeAgo(iso) {
+  if (!iso) return '—';
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return s+'s ago';
+  if (s < 3600) return Math.floor(s/60)+'m ago';
+  return Math.floor(s/3600)+'h ago';
+}
+
+function safeId(u) { return u.replace(/[^a-z0-9]/gi,'_'); }
+
+function makeEditCell(username, field, value, placeholder, inputClass) {
+  const sid = safeId(username);
+  const display = value ? value : placeholder;
+  const isEmpty = !value;
+  return `<div class="editable-cell" id="cell-${field}-${sid}">
+    <span class="cell-display ${isEmpty ? 'empty-val' : ''}" onclick="startEdit('${username}','${field}','${value}','${placeholder}','${inputClass}')">
+      ${display} <span class="edit-icon">✏️</span>
+    </span>
+  </div>`;
+}
+
+function startEdit(username, field, currentVal, placeholder, inputClass) {
+  const sid = safeId(username);
+  const cellEl = document.getElementById('cell-'+field+'-'+sid);
+  if (!cellEl) return;
+  cellEl.innerHTML = `<input class="cell-input ${inputClass}" id="inp-${field}-${sid}"
+    type="${field==='target'?'number':'text'}" value="${currentVal}" placeholder="${placeholder}"
+    onkeydown="handleKey(event,'${username}','${field}','${placeholder}','${inputClass}')"/>
+    <button class="save-btn" onclick="commitEdit('${username}','${field}','${placeholder}','${inputClass}')">💾</button>`;
+  const inp = document.getElementById('inp-'+field+'-'+sid);
+  if (inp) { inp.focus(); inp.select(); }
+}
+
+function commitEdit(username, field, placeholder, inputClass) {
+  const sid = safeId(username);
+  const inp = document.getElementById('inp-'+field+'-'+sid);
+  if (!inp) return;
+  const val = inp.value.trim();
+  saveExtra(username, field, val);
+  const cellEl = document.getElementById('cell-'+field+'-'+sid);
+  if (!cellEl) return;
+  const isEmpty = !val;
+  const display = val ? val : placeholder;
+  cellEl.innerHTML = `<span class="cell-display ${isEmpty ? 'empty-val' : ''}" onclick="startEdit('${username}','${field}','${val}','${placeholder}','${inputClass}')">
+    ${display} <span class="edit-icon">✏️</span>
+  </span>`;
+  if (field === 'target') {
+    const player = allPlayers.find(p => p.username === username);
+    if (player) {
+      const t = parseFloat(val);
+      const pct = (t > 0) ? Math.min(100, Math.round((player.gems / t) * 100)) : null;
+      const tp = document.getElementById('target-pct-'+sid);
+      const tb = document.getElementById('target-bar-'+sid);
+      const tprog = document.getElementById('target-progress-'+sid);
+      if (pct !== null) {
+        if (tprog) tprog.style.display = '';
+        if (tb) tb.style.width = pct+'%';
+        if (tp) tp.textContent = pct+'%';
+      } else {
+        if (tprog) tprog.style.display = 'none';
+        if (tp) tp.textContent = '';
+      }
+    }
+  }
+}
+
+function handleKey(e, username, field, placeholder, inputClass) {
+  if (e.key === 'Enter') commitEdit(username, field, placeholder, inputClass);
+  if (e.key === 'Escape') renderTable();
+}
+
+async function deletePlayer(username) {
+  if (!confirm('ลบ ' + username + ' ?')) return;
+  await fetch('/api/players/' + encodeURIComponent(username), { method: 'DELETE' });
+  await fetchData();
+}
+
+function renderTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = allPlayers.filter(p => p.username.toLowerCase().includes(q));
+  const tbody = document.getElementById('tbody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty">ยังไม่มีข้อมูล</div></td></tr>';
+    return;
+  }
+  filtered.sort((a,b) => (b.online - a.online) || (b.gems - a.gems));
+  tbody.innerHTML = filtered.map(p => {
+    const ex = getExtra(p.username);
+    const sid = safeId(p.username);
+    const t = parseFloat(ex.target);
+    const pct = (t > 0) ? Math.min(100, Math.round((p.gems / t) * 100)) : null;
+    return `<tr>
+      <td><span class="badge ${p.online?'online':'offline'}"><span class="dot"></span>${p.online?'Online':'Offline'}</span></td>
+      <td><strong>${p.username}</strong></td>
+      <td>
+        <div class="gems">${fmt(p.gems)}</div>
+        <div class="target-progress" id="target-progress-${sid}" style="${pct===null?'display:none':''}">
+          <div class="target-bar" id="target-bar-${sid}" style="width:${pct||0}%"></div>
+        </div>
+        <div class="target-pct" id="target-pct-${sid}">${pct!==null?pct+'%':''}</div>
+      </td>
+      <td style="color:#999">${timeAgo(p.updated_at)}</td>
+      <td>${makeEditCell(p.username,'target',ex.target,'ใส่เลข','')}</td>
+      <td>${makeEditCell(p.username,'ugNo',ex.ugNo,'Ug No.','wide')}</td>
+      <td>${makeEditCell(p.username,'screen',ex.screen,'จอที่...','wide')}</td>
+      <td><button class="btn-delete" onclick="deletePlayer('${p.username}')">🗑 ลบ</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function fetchData() {
+  try {
+    const r = await fetch('/api/players');
+    const d = await r.json();
+    if (!d.ok) return;
+    allPlayers = d.players;
+    const online = allPlayers.filter(p => p.online).length;
+    const totalGems = allPlayers.reduce((s,p) => s + (p.gems||0), 0);
+    const avg = allPlayers.length ? Math.floor(totalGems/allPlayers.length) : 0;
+    document.getElementById('sumOnline').textContent = online;
+    document.getElementById('sumTotal').textContent = allPlayers.length;
+    document.getElementById('sumGems').textContent = fmt(totalGems);
+    document.getElementById('sumAvg').textContent = fmt(avg);
+    document.getElementById('lastUpdate').textContent = 'อัปเดต: ' + new Date().toLocaleTimeString('th-TH');
+    renderTable();
+  } catch(e) { console.error(e); }
+}
+
+function startCountdown() {
+  if (countdownTimer) clearInterval(countdownTimer);
+  countdownVal = 5;
+  const el = document.getElementById('countdown');
+  if (el) el.textContent = countdownVal;
+  countdownTimer = setInterval(async () => {
+    countdownVal--;
+    if (el) el.textContent = countdownVal;
+    if (countdownVal <= 0) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+      await fetchData();
+      startCountdown();
+    }
+  }, 1000);
+}
+
+fetchData().then(() => startCountdown());
+</script>
+</body>
+</html>
